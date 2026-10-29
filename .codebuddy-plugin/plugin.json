@@ -1,0 +1,8 @@
+{
+  "name": "context-resume",
+  "version": "1.0.0",
+  "description": "在新的 WorkBuddy 窗口里挑选一个历史任务，自动加载它的上下文（目标/进展/产物/待办）接着做。",
+  "author": "SeekAfterSeek",
+  "homepage": "https://github.com/SeekAfterSeek/context-resume",
+  "keywords": ["workbuddy", "context", "resume", "handoff", "session", "branch"]
+}
