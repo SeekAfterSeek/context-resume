@@ -51,6 +51,28 @@ function slugToPathHint(slug) {
   return m[1].toUpperCase() + ':\\' + m[2].replace(/-/g, '\\');
 }
 
+// 空间标签：取工作目录里最能认人的那一段
+//   c:\Users\Lenovo\WorkBuddy\2026-10-28-06-50-06 → WorkBuddy
+//   d:\Desktop\工作成果                          → 工作成果
+//   c:\Users\Lenovo\WorkBuddy\Claw               → Claw
+function spaceLabel(cwd) {
+  const parts = String(cwd || '')
+    .replace(/\//g, '\\')
+    .split('\\')
+    .filter(Boolean);
+  if (!parts.length) return String(cwd || '未知');
+  const last = parts[parts.length - 1];
+  const prev = parts[parts.length - 2] || last;
+  if (/^\d{4}-\d{2}-\d{2}/.test(last) || /^automation-/.test(last)) return prev;
+  return last;
+}
+
+// 自动化任务跑出来的会话（定时任务），不属于用户手动开的任务
+function isAutomationSlug(slug) {
+  return /automation-/.test(slug);
+}
+
+
 function fmtTime(ms) {
   if (!ms) return '未知时间';
   const d = new Date(ms);
@@ -259,6 +281,8 @@ function listSessions(opts) {
   if (!fs.existsSync(PROJECTS_ROOT)) return [];
   const out = [];
   for (const slug of fs.readdirSync(PROJECTS_ROOT)) {
+    // 默认跳过定时任务自动跑出来的会话（可在面板里用「包含自动化任务」打开）
+    if (!o.includeAutomation && isAutomationSlug(slug)) continue;
     const dir = path.join(PROJECTS_ROOT, slug);
     let st;
     try {
@@ -278,10 +302,13 @@ function listSessions(opts) {
       try {
         const s = scanSession(full);
         if (!o.includeEmpty && s.messageCount === 0) continue;
+        const space = spaceLabel(s.cwd);
+        if (o.space && !String(space).toLowerCase().includes(String(o.space).toLowerCase())) continue;
         out.push({
           sessionId: s.sessionId,
           shortId: s.shortId,
           title: s.title,
+          space,
           cwd: s.cwd,
           cwdFromMeta: s.cwdFromMeta,
           lastTs: s.lastTs,
@@ -299,9 +326,42 @@ function listSessions(opts) {
     }
   }
   out.sort((a, b) => b.lastTs - a.lastTs);
-  const limit = o.limit && o.limit > 0 ? o.limit : out.length;
-  return out.slice(0, limit);
+
+  // 同空间同标题只留最新一条（避免同一任务的多条分身刷屏）
+  const seen = new Set();
+  const deduped = [];
+  for (const r of out) {
+    const key = r.space + '||' + r.title;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(r);
+  }
+
+  const limit = o.limit && o.limit > 0 ? o.limit : deduped.length;
+  return deduped.slice(0, limit);
 }
+
+/**
+ * 按空间聚合：每个空间下有几个可恢复的任务、最近一次活动时间。
+ */
+function listSpaces(opts) {
+  const o = opts || {};
+  const rows = listSessions({ limit: 0, includeAutomation: o.includeAutomation });
+  const map = new Map();
+  for (const r of rows) {
+    const cur = map.get(r.space) || { space: r.space, count: 0, lastTs: 0, cwd: r.cwd };
+    cur.count += 1;
+    if (r.lastTs > cur.lastTs) {
+      cur.lastTs = r.lastTs;
+      cur.cwd = r.cwd;
+    }
+    map.set(r.space, cur);
+  }
+  return [...map.values()]
+    .sort((a, b) => b.lastTs - a.lastTs)
+    .map((s) => ({ ...s, lastTime: fmtTime(s.lastTs), rel: relTime(s.lastTs) }));
+}
+
 
 /* ---------------- 渲染 ---------------- */
 
@@ -393,6 +453,8 @@ module.exports = {
   PROJECTS_ROOT,
   scanSession,
   listSessions,
+  listSpaces,
+  spaceLabel,
   renderFull,
   renderBrief,
   gitInfo,

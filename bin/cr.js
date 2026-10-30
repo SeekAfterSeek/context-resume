@@ -38,11 +38,61 @@ function parseArgs(argv) {
   return args;
 }
 
+/* ---------------- 快照（写回 SKILL.md，让第一个选择框无需跑脚本） ---------------- */
+
+function resolveSkillMd() {
+  const candidates = [
+    path.join(__dirname, '..', 'SKILL.md'),
+    path.join(__dirname, '..', 'skills', 'context-resume', 'SKILL.md')
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch (_) {}
+  }
+  return null;
+}
+
+function updateSnapshot() {
+  const md = resolveSkillMd();
+  if (!md) return;
+  let raw;
+  try {
+    raw = fs.readFileSync(md, 'utf8');
+  } catch (_) {
+    return;
+  }
+  const START = '<!-- SNAPSHOT:START -->';
+  const END = '<!-- SNAPSHOT:END -->';
+  const a = raw.indexOf(START);
+  const b = raw.indexOf(END);
+  if (a < 0 || b < 0 || b < a) return;
+
+  const rows = lib.listSessions({ limit: 5 });
+  const stamp = new Date().toLocaleString('zh-CN', { hour12: false });
+  const lines = rows.map((r, i) => {
+    const n = String(i + 1).padStart(2, ' ');
+    return `${n}. ${lib.truncate(r.title, 30)} ｜ ${r.space} · ${r.rel} · ${r.messageCount} 条对话 ｜ ${r.sessionId}`;
+  });
+  const body =
+    `（快照时间：${stamp}，可用 \`node bin/cr.js list\` 刷新）\n` +
+    (lines.length ? lines.join('\n') : '（暂无可恢复任务）');
+
+  const next = raw.slice(0, a + START.length) + '\n' + body + '\n' + raw.slice(b);
+  try {
+    fs.writeFileSync(md, next, 'utf8');
+  } catch (_) {}
+}
+
 /* ---------------- list ---------------- */
 
 function cmdList(args) {
   const limit = parseInt(args.limit || '12', 10) || 12;
-  const rows = lib.listSessions({ limit });
+  const rows = lib.listSessions({
+    limit,
+    includeAutomation: Boolean(args.all),
+    space: args.space || args.in
+  });
 
   if (args.json) {
     process.stdout.write(JSON.stringify(rows, null, 2) + '\n');
@@ -50,21 +100,42 @@ function cmdList(args) {
   }
 
   if (!rows.length) {
-    console.log('没有找到任何历史任务（' + lib.PROJECTS_ROOT + '）。');
+    console.log('没有找到可恢复的任务。');
     return;
   }
   console.log('最近的 ' + rows.length + ' 个任务（新 → 旧）：\n');
   rows.forEach((r, i) => {
     const idx = String(i + 1).padStart(2, ' ');
-    console.log(`[${idx}] ${lib.truncate(r.title, 34)}`);
+    console.log(`[${idx}] ${lib.truncate(r.title, 40)}`);
     console.log(
-      `     ${r.shortId} · ${r.messageCount} 条对话 · ${r.toolCount} 次工具 · ${r.lastTime}（${r.rel}）`
+      `     ${r.space} · ${r.rel} · ${r.messageCount} 条对话 · ${r.toolCount} 次工具`
     );
-    console.log(`     ${r.cwd}`);
     console.log('');
   });
   console.log('加载：node cr.js load <编号或会话ID>');
+  updateSnapshot();
 }
+
+/* ---------------- spaces ---------------- */
+
+function cmdSpaces(args) {
+  const rows = lib.listSpaces({ includeAutomation: Boolean(args.all) });
+  if (args.json) {
+    process.stdout.write(JSON.stringify(rows, null, 2) + '\n');
+    return;
+  }
+  if (!rows.length) {
+    console.log('没有找到任何空间。');
+    return;
+  }
+  console.log('历史空间（按最近活动排序）：\n');
+  rows.forEach((s, i) => {
+    console.log(`[${String(i + 1).padStart(2, ' ')}] ${s.space}    ${s.count} 个任务 · ${s.rel}`);
+  });
+  console.log('\n看某个空间的任务：node cr.js list --space <空间名>');
+  updateSnapshot();
+}
+
 
 /* ---------------- load ---------------- */
 
@@ -178,6 +249,7 @@ ${git.log || '（无）'}
   console.log(`   工作目录 ${s.cwd}`);
   console.log('');
   console.log('下一步：读 RESUME_MAIN，向用户复述「这个任务在做什么 / 做到哪 / 下一步」，再继续干活。');
+  updateSnapshot();
 }
 
 /* ---------------- 入口 ---------------- */
@@ -186,11 +258,16 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   const cmd = args._[0] || 'help';
   if (cmd === 'list' || cmd === 'ls') return cmdList(args);
+  if (cmd === 'spaces') return cmdSpaces(args);
   if (cmd === 'load' || cmd === 'resume') return cmdLoad(args);
   console.log(`context-resume
 
-  node cr.js list [--limit 12] [--json]
-      列出最近的历史任务（标题 / 规模 / 时间 / 工作目录）
+  node cr.js list [--limit 12] [--json] [--space <空间名>] [--all]
+      列出最近的历史任务（标题 / 空间 / 时间 / 规模）
+      --all  连定时任务（automation-*）产生的会话一起列出
+
+  node cr.js spaces [--json]
+      列出历史空间，以及每个空间下有几个任务
 
   node cr.js load <编号|会话ID> [--out <目录>] [--brief-limit 900]
       加载该任务的上下文，生成 resume.md / resume.brief.md / resume.full.md
