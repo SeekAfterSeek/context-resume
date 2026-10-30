@@ -1,9 +1,9 @@
 ---
 name: context-resume
-version: "1.1.1"
+version: "1.1.2"
 display_name: 上下文恢复（选任务接着做）
 display_name_en: Context Resume
-description: Use when the user wants to continue work from a previous WorkBuddy task/session in a new window — "恢复", "接着上次做", "继续之前的任务", "加载上下文", "把之前的弄过来", "上下文快满了", "resume", "load context". Lists the user's recent tasks (and their spaces), lets them pick one via a chooser, then loads that task's context (goal, progress, touched files, open todos) and restates what was done and what is next.
+description: Use when the user wants to continue work from a previous WorkBuddy task/session in a new window — "恢复", "接着上次做", "继续之前的任务", "加载上下文", "把之前的弄过来", "上下文快满了", "resume", "load context". Lists the user's recent tasks (and their spaces), lets them pick one via a chooser, then loads that task's context (goal, progress, touched files, open todos) and restates what was done and what is next. IMPORTANT — this skill must fire on the user's very first message in a fresh window without them inserting it: when the first message is just "恢复"/"继续"/"接着上次"/"resume", load this skill and pop the chooser immediately, with ZERO preamble text before the tool call.
 description_zh: 在新窗口里挑选一个历史任务（可按最近任务或按空间），自动加载它的上下文并复述进度，接着做。
 trigger_keywords:
   - 恢复
@@ -21,6 +21,12 @@ agent_created: true
 ## ⚠️ 第一动作（最重要，必须照做）
 
 **收到触发后，不要输出任何解释文字，不要先跑脚本，直接调用选择控件。**
+
+这条禁令的生效范围是**从看到触发词那一刻开始**，不是从读完本文件开始：
+
+- 调用 `Skill` 工具**之前**不要说话（写「我先加载 context-resume 技能…」就算违规）
+- 调用 `Skill` 工具**之后**、弹框**之前**也不要说话（写「已加载，最近你在做…」也算违规）
+- 全程唯一可见的动作就是选择控件本身
 
 选项直接从下面「最近任务快照」里取最近 3 条：
 
