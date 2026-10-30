@@ -302,12 +302,24 @@ function listSessions(opts) {
       try {
         const s = scanSession(full);
         if (!o.includeEmpty && s.messageCount === 0) continue;
+        // 跳过「本身就是一次恢复操作」的会话，避免列表里出现自己的回声
+        if (!o.includeAll && /@skill:(context-resume|ctx)\b/.test(String(s.firstUserText || ''))) {
+          continue;
+        }
         const space = spaceLabel(s.cwd);
         if (o.space && !String(space).toLowerCase().includes(String(o.space).toLowerCase())) continue;
         out.push({
           sessionId: s.sessionId,
           shortId: s.shortId,
           title: s.title,
+          firstUserText: truncate(
+            String(s.firstUserText || '')
+              .replace(/@[\w:.-]+/g, ' ')
+              .replace(/<[^>]*>/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim(),
+            36
+          ),
           space,
           cwd: s.cwd,
           cwdFromMeta: s.cwdFromMeta,

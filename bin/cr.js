@@ -72,7 +72,12 @@ function updateSnapshot() {
   const stamp = new Date().toLocaleString('zh-CN', { hour12: false });
   const lines = rows.map((r, i) => {
     const n = String(i + 1).padStart(2, ' ');
-    return `${n}. ${lib.truncate(r.title, 30)} ｜ ${r.space} · ${r.rel} · ${r.messageCount} 条对话 ｜ ${r.sessionId}`;
+    const said = r.firstUserText ? `你说：${r.firstUserText}` : '（无用户消息）';
+    return (
+      `${n}. ${lib.truncate(r.title, 30)}\n` +
+      `    ${said} ｜ ${r.space} · ${r.rel} · ${r.messageCount} 条对话\n` +
+      `    ID: ${r.sessionId}`
+    );
   });
   const body =
     `（快照时间：${stamp}，可用 \`node bin/cr.js list\` 刷新）\n` +
@@ -107,6 +112,7 @@ function cmdList(args) {
   rows.forEach((r, i) => {
     const idx = String(i + 1).padStart(2, ' ');
     console.log(`[${idx}] ${lib.truncate(r.title, 40)}`);
+    if (r.firstUserText) console.log(`     你说：${r.firstUserText}`);
     console.log(
       `     ${r.space} · ${r.rel} · ${r.messageCount} 条对话 · ${r.toolCount} 次工具`
     );

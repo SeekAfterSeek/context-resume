@@ -1,6 +1,6 @@
 ---
 name: context-resume
-version: "1.1.0"
+version: "1.1.1"
 display_name: 上下文恢复（选任务接着做）
 display_name_en: Context Resume
 description: Use when the user wants to continue work from a previous WorkBuddy task/session in a new window — "恢复", "接着上次做", "继续之前的任务", "加载上下文", "把之前的弄过来", "上下文快满了", "resume", "load context". Lists the user's recent tasks (and their spaces), lets them pick one via a chooser, then loads that task's context (goal, progress, touched files, open todos) and restates what was done and what is next.
@@ -24,12 +24,16 @@ agent_created: true
 
 选项直接从下面「最近任务快照」里取最近 3 条：
 
-- `label` = 该条的任务标题（超过 22 字才截断）
-- `description` = `"<空间> · <相对时间> · <对话数> 条对话"`
+- `label` = 该条的任务标题（**超过 24 字才截断，不要提前砍**）
+- `description` = `"你说：<该条「你说」字段的前 24 字> · <空间> · <相对时间>"`
+  - 这一项是为了让用户能把面板选项和侧边栏任务对上，**不能省**
 - 第 4 个选项固定：
   - `label`：`查看更多 / 按空间选`
   - `description`：`列出 20 个任务，并按空间分组`
 - 问题文案：`要恢复哪段上下文？`
+
+**禁止**在这一轮里输出以下任何内容（这会让用户以为"没弹框"）：
+`好的` / `我先加载…` / `我来帮你…` / `最近你在做…` / 任何总结或复述。
 
 例外：只有当快照为空、或快照时间距今超过 3 小时、或用户明确说「重新扫一遍」时，才先执行
 `node bin/cr.js list --limit 3` 再弹出选择。
@@ -85,10 +89,20 @@ node bin/cr.js load <编号|会话ID> [--out <目录>]
 ## 最近任务快照
 
 <!-- SNAPSHOT:START -->
-（快照时间：2026/10/30 19:20:53，可用 `node bin/cr.js list` 刷新）
- 1. 编写谷歌词典选词翻译快捷键插件 ｜ WorkBuddy · 刚刚 · 172 条对话 ｜ b0ce03a7-edb0-49e0-a02b-40e65fcc30aa
- 2. 继续会话上下文 ｜ WorkBuddy · 7 分钟前 · 3 条对话 ｜ d18ed431-fde4-400b-ab9f-e4584b15bfe9
- 3. 打招呼问候 ｜ Claw · 5 小时前 · 25 条对话 ｜ 6af938d3-b123-4673-aa1e-15f085c78b44
- 4. 测试 Clash 节点实际 IP ｜ WorkBuddy · 2 天前 · 20 条对话 ｜ cd865be8-c925-4e86-bc87-0c7ddef0dd23
- 5. 设置 WorkBuddy 使用 Edge 浏览器打开 ｜ WorkBuddy · 2 天前 · 61 条对话 ｜ 96886778-eed1-40c8-a4ed-57d9d8cef276
+（快照时间：2026/10/30 21:22:12，可用 `node bin/cr.js list` 刷新）
+ 1. 编写谷歌词典选词翻译快捷键插件
+    你说：我想写一个谷歌插件，就是我把一个单词拉上之后，按一个快捷键就能调出这个翻… ｜ WorkBuddy · 刚刚 · 188 条对话
+    ID: b0ce03a7-edb0-49e0-a02b-40e65fcc30aa
+ 2. 打招呼问候
+    你说：你好 ｜ Claw · 7 小时前 · 25 条对话
+    ID: 6af938d3-b123-4673-aa1e-15f085c78b44
+ 3. 测试 Clash 节点实际 IP
+    你说：你来测试一下我的 Clash 里面每个节点的实际 IP ｜ WorkBuddy · 2 天前 · 20 条对话
+    ID: cd865be8-c925-4e86-bc87-0c7ddef0dd23
+ 4. 设置 WorkBuddy 使用 Edge 浏览器打开
+    你说：我想设置让 WorkBuddy 自动打开的浏览器是微软自带的浏览器，而不… ｜ WorkBuddy · 3 天前 · 61 条对话
+    ID: 96886778-eed1-40c8-a4ed-57d9d8cef276
+ 5. 排查 WorkBuddy 网络慢的原因
+    你说：看一下是不是WorkBuddy的网络通道，为什么这么慢 ｜ WorkBuddy · 3 天前 · 27 条对话
+    ID: 73afaaa6-d8f7-4c24-8e06-f44ab9fb8e43
 <!-- SNAPSHOT:END -->
